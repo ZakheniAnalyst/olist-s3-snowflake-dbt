@@ -1,0 +1,13 @@
+olist:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: PIIHLXE-XY14924
+      user: SELUENGINEER
+      role: DBT_ROLE
+      private_key_path: C:/dev/olist_dbt/rsa_key.p8
+      database: OLIST_DB
+      warehouse: OLIST_WH
+      schema: dbt
+      threads: 4

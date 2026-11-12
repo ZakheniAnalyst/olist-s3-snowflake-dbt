@@ -1,0 +1,11 @@
+rsa_key.p8
+powerbi_key.p8
+*.p8
+*.pub
+*.pbix
+profiles.yml
+.venv/
+target/
+logs/
+dbt_packages/
+.user.yml
