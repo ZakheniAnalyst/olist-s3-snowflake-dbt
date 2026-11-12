@@ -1,0 +1,47 @@
+# Olist E-commerce ELT Pipeline: S3 → Snowflake → dbt → Power BI
+
+End-to-end analytics pipeline on the Olist Brazilian e-commerce dataset (9 CSV files, ~1.4M rows). Raw files land in S3, load into Snowflake, are modelled into a tested star schema with dbt, and are visualised in Power BI.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Olist CSVs] --> B[S3 raw zone]
+  B -->|storage integration + external stage| C[Snowflake RAW]
+  C -->|dbt views| D[STAGING]
+  D -->|dbt tables| E[MARTS: star schema]
+  E --> F[Power BI]
+```
+
+## Stack
+
+- **Storage:** Amazon S3, one folder per table (`raw/olist/<table>/`)
+- **Warehouse:** Snowflake (X-Small, auto-suspend 60 s), loaded with `COPY INTO`
+- **Access:** Snowflake storage integration with a read-only, path-scoped IAM role (no AWS keys stored)
+- **Transformation:** dbt-core 1.12 + dbt-snowflake, key-pair authentication, least-privilege roles
+- **BI:** Power BI Desktop (import mode, read-only role on `MARTS`)
+
+## Data model
+
+- **Staging (views):** `stg_customers`, `stg_geolocation`, `stg_order_items`, `stg_order_payments`, `stg_order_reviews`, `stg_orders`, `stg_product_category_translation`, `stg_products`, `stg_sellers`
+- **Marts (tables):** `dim_customers`, `dim_products`, `dim_sellers`, `dim_date`, `fct_orders` (one row per order), `fct_order_items` (one row per item)
+
+## Data quality decisions
+
+- `customer_id` is unique per order, so the customer dimension is keyed on `customer_unique_id` (99,441 orders → 96,096 customers)
+- Reviews contain duplicates: keep the latest review per order
+- Geolocation has 1M rows for ~19K zip prefixes: collapsed to one row per prefix
+- 73 product categories vs 71 translations: fallback with `coalesce`
+- Late delivery compares dates, not timestamps, because the estimate is stored at midnight
+
+## Testing
+
+`dbt build`: **61 of 61 passing** (9 views, 6 tables, 46 data tests: `unique`, `not_null`, `accepted_values`, and `relationships` between facts and dimensions).
+
+## Dashboards
+
+![Sales overview](docs/sales_overview.png)
+![Delivery and satisfaction](docs/delivery_satisfaction.png)
+
+Headline results: 13.49M net revenue, ~98K orders, 4.09 average review score, 6.77% late deliveries, 3.12% repeat customers. Late orders average about 2.3 stars against about 4.3 for on-time orders.
+
